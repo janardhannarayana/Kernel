@@ -47,6 +47,14 @@ struct file_operations dev_fops = {
 int dev_open(struct inode *dev_inode, struct file *dev_file)
 {
     printk(KERN_ALERT "Open function\n");
+    /*
+    * Open function alone contains inode structure.
+    * inode structure contains the corresponding cdev structure.
+    * using container_of macro we can find the the struct mydevice base address
+    * by passing cdev address as a parameter.
+    * This will be saved in file structure and further used in other functions
+    * So that multiple device nodes can access their own data structure
+    */
     dev_file->private_data = container_of(dev_inode->i_cdev, struct mydevice, dev_cdev);
     printk("private data = %p\n", dev_file->private_data);
     return 0;
