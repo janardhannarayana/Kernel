@@ -5,12 +5,7 @@
  */
 
 /*Kernel does not have access to standard c libraries*/
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/cdev.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
+#include "char_driver.h"
 
 /* module_param(variable, type, perm)
  * module_param is used for accepting command line arguments in kernel modules
@@ -25,36 +20,49 @@ static int num_dev = 1;
 module_param(num_dev, int, S_IRUGO);
 MODULE_PARM_DESC(num_dev, "This parameter specifies the number of device nodes this driver support");
 
-struct mydevice {
-    struct cdev dev_cdev;
-    char *data;
-};
-
 struct mydevice *chardevices = NULL;
 dev_t dev;
 
-int dev_open(struct inode *dev_inode, struct file *dev_file);
-ssize_t dev_read(struct file *fp, char *userbuff, size_t size, loff_t *offset);
-ssize_t dev_write(struct file *fp, const char *userbuff, size_t size, loff_t *offset);
+struct proc_dir_entry *proc_entry = NULL;
+#if (USE_PROC == 1)
+/*
+ * create_proc_read_entry is deprecated. So we are not going use that API for
+ * proc creation.
+ * proc_create is the new api for creating the proc entry.
+ */
 
-struct file_operations dev_fops = {
-    .owner = THIS_MODULE,
-    .open  = dev_open,
-    .read  = dev_read,
-    .write = dev_write,
-};
+int myproc_open(struct inode *dev_inode, struct file *dev_file)
+{
+    printk(KERN_ALERT "Proc open function\n");
+    return 0;
+}
+
+ssize_t myproc_read(struct file *fp, char __user *userbuff, size_t size, loff_t *offset)
+{
+    printk(KERN_ALERT "PROC READ FILE\n");
+    return 0;
+}
+
+ssize_t myproc_write(struct file *fp, const char __user *userbuff, size_t size, loff_t *offset)
+{
+    printk(KERN_ALERT "PROC WRITE FILE\n");
+    /*User write function writes repeatedly until it completes. So return the size requested. this is only for testing*/
+    return size;
+}
+
+#endif
 
 int dev_open(struct inode *dev_inode, struct file *dev_file)
 {
     printk(KERN_ALERT "Open function\n");
     /*
-    * Open function alone contains inode structure.
-    * inode structure contains the corresponding cdev structure.
-    * using container_of macro we can find the the struct mydevice base address
-    * by passing cdev address as a parameter.
-    * This will be saved in file structure and further used in other functions
-    * So that multiple device nodes can access their own data structure
-    */
+     * Open function alone contains inode structure.
+     * inode structure contains the corresponding cdev structure.
+     * using container_of macro we can find the the struct mydevice base address
+     * by passing cdev address as a parameter.
+     * This will be saved in file structure and further used in other functions
+     * So that multiple device nodes can access their own data structure
+     */
     dev_file->private_data = container_of(dev_inode->i_cdev, struct mydevice, dev_cdev);
     printk("private data = %p\n", dev_file->private_data);
     return 0;
@@ -124,8 +132,9 @@ static int __init char_module_init(void)
     chardevices = kmalloc(sizeof(struct mydevice) * num_dev, GFP_KERNEL);
 
     /* Based on number device nodes creating, that many cdev should be added with different
-    * minor numbers. Device nodes which creates using this particular major and minor number
-    * will have the different cdev structures allocated*/
+     * minor numbers. Device nodes which creates using this particular major and minor number
+     * will have the different cdev structures allocated
+     */
     for(i = 0; i < num_dev; i++) {
 	int mydev = MKDEV(MAJOR(dev), i);
 	(chardevices + i)->data = kmalloc(128, GFP_KERNEL);
@@ -135,6 +144,14 @@ static int __init char_module_init(void)
 	cdev_add(&((chardevices + i)->dev_cdev), mydev, 1);
     }
 
+#if (USE_PROC == 1)
+    struct proc_dir_entry *parent = NULL;
+    parent = proc_mkdir("char_device", NULL);
+
+    proc_entry = proc_create("dev_proc", 0666, parent, &proc_fops);
+    
+#endif
+
     return 0;
 }
 
@@ -142,6 +159,9 @@ static void __exit char_module_exit(void)
 {
     int i = 0;
 
+#if (USE_PROC == 1)
+    proc_remove(proc_entry);
+#endif
     for(i = 0; i < num_dev; i++) {
 	cdev_del(&((chardevices + i)->dev_cdev));
 	kfree((chardevices + i)->data);
@@ -154,7 +174,7 @@ static void __exit char_module_exit(void)
 module_init(char_module_init);
 module_exit(char_module_exit);
 
-/*Without license when we load the driver in kernel, kernel shows a tainted kernel message*/
+/* Without license when we load the driver in kernel, kernel shows a tainted kernel message */
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("JANARDHAN");
 MODULE_DESCRIPTION("This is a sample characer device driver program");
