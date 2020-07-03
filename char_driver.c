@@ -23,8 +23,9 @@ MODULE_PARM_DESC(num_dev, "This parameter specifies the number of device nodes t
 struct mydevice *chardevices = NULL;
 dev_t dev;
 
-struct proc_dir_entry *proc_entry = NULL;
 #if (USE_PROC == 1)
+struct proc_dir_entry *parent = NULL;
+struct proc_dir_entry *proc_entry = NULL;
 /*
  * create_proc_read_entry is deprecated. So we are not going use that API for
  * proc creation.
@@ -39,7 +40,11 @@ int myproc_open(struct inode *dev_inode, struct file *dev_file)
 
 ssize_t myproc_read(struct file *fp, char __user *userbuff, size_t size, loff_t *offset)
 {
+    int i = 0;
     printk(KERN_ALERT "PROC READ FILE\n");
+
+    for (i = 0; i < 500; i++)
+	printk(KERN_ALERT "i = %d\n", i);
     return 0;
 }
 
@@ -145,7 +150,6 @@ static int __init char_module_init(void)
     }
 
 #if (USE_PROC == 1)
-    struct proc_dir_entry *parent = NULL;
     parent = proc_mkdir("char_device", NULL);
 
     proc_entry = proc_create("dev_proc", 0666, parent, &proc_fops);
@@ -161,6 +165,7 @@ static void __exit char_module_exit(void)
 
 #if (USE_PROC == 1)
     proc_remove(proc_entry);
+    proc_remove(parent);
 #endif
     for(i = 0; i < num_dev; i++) {
 	cdev_del(&((chardevices + i)->dev_cdev));
