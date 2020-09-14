@@ -26,6 +26,7 @@ dev_t dev;
 #if (USE_PROC == 1)
 struct proc_dir_entry *parent = NULL;
 struct proc_dir_entry *proc_entry = NULL;
+static int proc_ite = 5000;
 /*
  * create_proc_read_entry is deprecated. So we are not going use that API for
  * proc creation.
@@ -43,14 +44,26 @@ ssize_t myproc_read(struct file *fp, char __user *userbuff, size_t size, loff_t 
     int i = 0;
     printk(KERN_ALERT "PROC READ FILE\n");
 
-    for (i = 0; i < 500; i++)
+    for (i = 0; i < proc_ite; i++)
 	printk(KERN_ALERT "i = %d\n", i);
+    
+    /* Returns the number of bytes we filled */
     return 0;
 }
 
 ssize_t myproc_write(struct file *fp, const char __user *userbuff, size_t size, loff_t *offset)
 {
+    char proc_buff[size+1];
+
     printk(KERN_ALERT "PROC WRITE FILE\n");
+    
+    memset(proc_buff, 0, size+1);
+
+    copy_from_user(proc_buff, userbuff, size);
+
+    proc_buff[size] = '\0';
+
+    kstrtoint(proc_buff, 0, &proc_ite);
     /*User write function writes repeatedly until it completes. So return the size requested. this is only for testing*/
     return size;
 }
@@ -98,7 +111,7 @@ ssize_t dev_write(struct file *fp, const char __user *userbuff, size_t size, lof
 }
 
 
-/* Loadable modules: Modules that are dynamically loaded adfter the machine is up
+/* Loadable modules: Modules that are dynamically loaded after the machine is up
  * Built-in-Drivers: Modules are built into linux kernel. These modules loads while kernel is loading.
  * Specifying __init to the function will let the kernel know that the function is used only
  * for initialization. Hence once the module is loaded kernel remove the space used for init function.

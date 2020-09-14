@@ -30,6 +30,10 @@ struct file_operations dev_fops = {
 
 #if (USE_PROC == 1)
 
+int myproc_open(struct inode *dev_inode, struct file *dev_file);
+ssize_t myproc_read(struct file *fp, char __user *userbuff, size_t size, loff_t *offset);
+ssize_t myproc_write(struct file *fp, const char __user *userbuff, size_t size, loff_t *offset);
+
 /* Use the following structure for kernel 5.0 version onwards.
  * Kernel changed proc fops from standard file_operatioins to struct proc_ops
  */
@@ -39,20 +43,14 @@ struct proc_ops proc_fops = {
     .proc_write = myproc_write,
     .proc_read  = myproc_read,
 };
-#endif
-
-int myproc_open(struct inode *dev_inode, struct file *dev_file);
-ssize_t myproc_read(struct file *fp, char __user *userbuff, size_t size, loff_t *offset);
-ssize_t myproc_write(struct file *fp, const char __user *userbuff, size_t size, loff_t *offset);
-
-
+#else
 struct file_operations proc_fops = {
     .owner = THIS_MODULE,
     .write = myproc_write,
     .open  = myproc_open,
     .read  = myproc_read,
 };
-
+#endif
 
 #endif
 
