@@ -46,6 +46,8 @@ ssize_t myproc_read(struct file *fp, char __user *userbuff, size_t size, loff_t 
 
     for (i = 0; i < proc_ite; i++)
 	printk(KERN_ALERT "i = %d\n", i);
+
+    copy_to_user(userbuff, "This is test case for proc read",31);
     
     /* Returns the number of bytes we filled */
     return 0;
@@ -181,10 +183,12 @@ static void __exit char_module_exit(void)
     proc_remove(parent);
 #endif
     for(i = 0; i < num_dev; i++) {
-	cdev_del(&((chardevices + i)->dev_cdev));
 	kfree((chardevices + i)->data);
-	kfree(chardevices + i);
+	/*Always delete the cdev node at the end*/
+	cdev_del(&((chardevices + i)->dev_cdev));
     }
+    kfree(chardevices);
+    
     unregister_chrdev_region(dev, num_dev);
 
     printk(KERN_ALERT"BYE!!! BYE!!!\n");
